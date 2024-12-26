@@ -1,92 +1,116 @@
 import React, { useEffect, useState } from 'react';
 
-// WebSocket connection to the server
 const ws = new WebSocket('ws://localhost:5050');
 
 const App = () => {
-  const [gameState, setGameState] = useState(null); // Game state including cards
-  const [playerHand, setPlayerHand] = useState([]); // Player's hand of 13 cards
-  const [selectedCards, setSelectedCards] = useState([]); // Selected cards for play
+  const [gameState, setGameState] = useState(null);
+  const [playerHand, setPlayerHand] = useState([]); 
+  const [selectedCards, setSelectedCards] = useState([]); 
 
   useEffect(() => {
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
+
       if (data.type === 'state') {
         setGameState(data.gameState);
-        setPlayerHand(data.gameState.playerHand);  // Set the player's 13 cards
+        setPlayerHand(data.gameState.playerHand); 
+      } else if (data.type === 'update') {
+        setGameState(data.gameState); 
       }
     };
 
-    // When the connection opens, send a 'join' message to the server
     ws.onopen = () => {
-      const playerId = Math.random().toString(36).substr(2, 9); // Random player ID
-      ws.send(
-        JSON.stringify({ type: 'join', playerId }) // Send join request to the server
-      );
+      const playerId = Math.random().toString(36).substr(2, 9); 
+      ws.send(JSON.stringify({ type: 'join', playerId })); 
     };
   }, []);
 
-  // Function to map card data to the SVG path
   const getCardImage = (card) => {
     const { rank, suit } = card;
 
-    // Map suit name to letter
     const suitMapping = {
-      'H': 'H',
-      'C': 'C',
-      'D': 'D',
-      'S': 'S'
+      H: 'H',
+      C: 'C',
+      D: 'D',
+      S: 'S',
     };
 
-    // Construct the card file name: e.g., AH.svg, KC.svg, etc.
     const suitLetter = suitMapping[suit];
-    return require(`./assets/cards/${rank}${suitLetter}.svg`); // Dynamically import the SVG
+    return require(`./assets/cards/${rank}${suitLetter}.svg`);
   };
 
-  // Handle card selection
   const handleCardClick = (card) => {
-    // If the card is already selected, remove it from the selection
     if (selectedCards.includes(card)) {
-      setSelectedCards(selectedCards.filter(c => c !== card));
-    } else {
-      // Allow selection of up to 4 cards at a time
-      if (selectedCards.length < 4) {
-        setSelectedCards([...selectedCards, card]);
-      }
+      setSelectedCards(selectedCards.filter((c) => c !== card));
+    } else if (selectedCards.length < 4) {
+      setSelectedCards([...selectedCards, card]);
     }
   };
 
-  // Render each card in the player's hand
   const renderCard = (card, index) => {
-    const isSelected = selectedCards.includes(card); // Check if the card is selected
+    const isSelected = selectedCards.includes(card);
     return (
       <div
         key={index}
         style={{
           width: '100px',
           height: '150px',
-          border: isSelected ? '3px solid red' : '1px solid black', // Highlight selected card
+          border: isSelected ? '3px solid red' : '1px solid black',
           display: 'inline-block',
           margin: '5px',
           backgroundColor: '#fff',
           textAlign: 'center',
           lineHeight: '150px',
-          cursor: 'pointer', // Change cursor to pointer on hover
+          cursor: 'pointer',
         }}
-        onClick={() => handleCardClick(card)} // Handle card click to select/unselect
+        onClick={() => handleCardClick(card)}
       >
-        <img src={getCardImage(card)} alt={`${card.rank} of ${card.suit}`} style={{ width: '100%', height: '100%' }} />
+        <img
+          src={getCardImage(card)}
+          alt={`${card.rank} of ${card.suit}`}
+          style={{ width: '100%', height: '100%' }}
+        />
       </div>
     );
   };
 
-  // Handle the play of selected cards
   const handlePlay = () => {
     if (selectedCards.length > 0) {
-      // Send selected cards to the server (you can customize this to match the game logic)
       ws.send(JSON.stringify({ type: 'play', cards: selectedCards }));
-      setSelectedCards([]); // Reset selected cards after play
+      setPlayerHand(playerHand.filter((card) => !selectedCards.includes(card))); 
+      setSelectedCards([]); 
     }
+  };
+
+  const renderTable = () => {
+    return (
+      <div className="table">
+        <h2>Table</h2>
+        <div>
+          {gameState.table.map((card, index) => (
+            <div
+              key={index}
+              style={{
+                width: '80px',
+                height: '120px',
+                border: '1px solid black',
+                display: 'inline-block',
+                margin: '5px',
+                backgroundColor: '#ddd',
+                textAlign: 'center',
+                lineHeight: '120px',
+              }}
+            >
+              <img
+                src={getCardImage(card)}
+                alt={`${card.rank} of ${card.suit}`}
+                style={{ width: '100%', height: '100%' }}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -99,12 +123,12 @@ const App = () => {
             {playerHand.map((card, index) => renderCard(card, index))}
           </div>
           <div>
-            {/* Display selected cards count */}
             <p>Selected Cards: {selectedCards.length} / 4</p>
             <button onClick={handlePlay} disabled={selectedCards.length === 0}>
               Play Selected Cards
             </button>
           </div>
+          {renderTable()}
         </>
       )}
     </div>
